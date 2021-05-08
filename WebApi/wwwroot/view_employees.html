@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Список сотрудников</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+    <nav class="navbar bg-dark navbar-dark">
+        <a class="navbar-brand ml-auto" href="view_departments.html">Перейти к отделам</a>
+    </nav>
+    <h2>Список сотрудников</h2>
+    <form name="employeeForm">
+        <input type="hidden" name="id" value="0" />
+        <div class="form-group col-md-5">
+            <label for="name">Имя:</label>
+            <input class="form-control" name="name" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="salary">Зарплата:</label>
+            <input class="form-control" name="salary" type="number" />
+        </div>
+        <div class="form-group col-md-5">
+            <label for="department">Отдел:</label>
+            <select class="form-control" name="department" id="department"></select>
+        </div>
+        <div class="panel-body">
+            <button type="submit" id="submit" class="btn btn-primary">Сохранить</button>
+            <a id="reset" class="btn btn-primary">Сбросить</a>
+        </div>
+    </form>
+    <table class="table table-condensed table-striped  col-md-6">
+        <thead><tr><th>Id</th><th>Имя</th><th>Зарплата</th><th>Отдел</th><th></th></tr></thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+        async function GetEmployees() {
+            const response = await fetch("/employees", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                let rows = document.querySelector("tbody");
+                const employees = await response.json();
+                employees.forEach(employee => {
+                    rows.append(row(employee));
+                });
+            }
+        }
+        async function GetEmployee(id) {
+            const response = await fetch("/employees/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const employee = await response.json();
+                const form = document.forms["employeeForm"];
+                form.elements["id"].value = employee.id;
+                form.elements["name"].value = employee.name;
+                form.elements["salary"].value = employee.salary;
+                form.elements["department"].value = employee.departmentId
+            }
+        }
+        async function CreateEmployee(employeeName, employeeSalary, employeeDepartment) {
+
+            const response = await fetch("employees", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: employeeName,
+                    salary: parseInt(employeeSalary, 10),
+                    departmentId: parseInt(employeeDepartment, 10)
+                })
+            });
+            if (response.ok === true) {
+                const employee = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(employee));
+            }
+        }
+        async function EditEmployee(employeeId, employeeName, employeeSalary, employeeDepartment) {
+            const response = await fetch("employees", {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(employeeId, 10),
+                    name: employeeName,
+                    salary: parseInt(employeeSalary, 10),
+                    departmentId: parseInt(employeeDepartment, 10)
+                })
+            });
+            if (response.ok === true) {
+                const employee = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + employee.id + "']").replaceWith(row(employee));
+            }
+        }
+        async function DeleteEmployee(id) {
+            const response = await fetch("/employees/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const employee = await response.json();
+                document.querySelector("tr[data-rowid='" + employee.id + "']").remove();
+            }
+        }
+
+        function reset() {
+            const form = document.forms["employeeForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+        }
+
+        function row(employee) {
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", employee.id);
+
+            const idTd = document.createElement("td");
+            idTd.append(employee.id);
+            tr.append(idTd);
+
+            const nameTd = document.createElement("td");
+            nameTd.append(employee.name);
+            tr.append(nameTd);
+
+            const salaryTd = document.createElement("td");
+            salaryTd.append(employee.salary);
+            tr.append(salaryTd);
+
+            const departmentTd = document.createElement("td");
+            let nameDepartment = employee.department.name
+            departmentTd.append(nameDepartment);
+            tr.append(departmentTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            editLink.setAttribute("data-id", employee.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.append("Изменить");
+            editLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                GetEmployee(employee.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("data-id", employee.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.append("Удалить");
+            removeLink.addEventListener("click", e => {
+
+                e.preventDefault();
+                DeleteEmployee(employee.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        document.getElementById("reset").click(function (e) {
+
+            e.preventDefault();
+            reset();
+        })
+
+
+        document.forms["employeeForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            const form = document.forms["employeeForm"];
+            const id = form.elements["id"].value;
+            const name = form.elements["name"].value;
+            const salary = form.elements["salary"].value;
+            const department = form.elements["department"].value;
+            if (id == 0)
+                CreateEmployee(name, salary, department);
+            else
+                EditEmployee(id, name, salary, department);
+
+            GetEmployees();
+        });
+
+
+        GetEmployees();
+
+        (async function FillOptionstDepartments() {
+            const response = await fetch("/departments", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const departments = await response.json();
+                let selectTag = document.getElementById("department");
+                departments.forEach(department => {
+                    let optionTag = document.createElement('option');
+                    optionTag.value = department.id;
+                    optionTag.innerText = department.name;
+                    selectTag.appendChild(optionTag);
+                });
+            }
+        })()
+
+    </script>
+</body>
+</html>
